@@ -23,6 +23,7 @@
     "vite": "^2.6.4"
   },
   "dependencies": {
+    "svelte-awesome": "^2.4.2",
     "vite-plugin-windicss": "^1.5.1",
     "windicss": "^3.2.1"
   }
