@@ -6,6 +6,7 @@
   export let label: string;
   export let type: "text" | "number";
   export let value;
+  export let disabled;
 
   const id = `TOOLBAR-CONTROL-${_id++}`;
 </script>
@@ -16,7 +17,7 @@
   </label>
 
   {#if type === "number"}
-    <input {id} type="number" class="w-20 rounded-md px-2" bind:value />
+    <input {id} type="number" class="w-20 rounded-md px-2" bind:value readonly={disabled} disabled={disabled} />
   {:else}
     <input {id} type="text" bind:value />
   {/if}

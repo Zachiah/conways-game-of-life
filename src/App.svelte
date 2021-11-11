@@ -141,7 +141,7 @@ import ToolbarControl from "./lib/ToolbarControl.svelte";
       Icon={playing ? PauseIcon : PlayIcon}
       on:click={switchPausePlay}
     />
-    <ToolbarControl label="Size" type="number" bind:value={size} />
+    <ToolbarControl label="Size" type="number" disabled={playing} bind:value={size} />
   </div>
 </div>
 
