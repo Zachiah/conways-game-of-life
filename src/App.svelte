@@ -6,19 +6,25 @@
   import Life from "./lib/Life";
   import nextGeneration from "./lib/nextGeneration";
   import ToolbarButton from "./lib/ToolbarButton.svelte";
+import ToolbarControl from "./lib/ToolbarControl.svelte";
 
-  const SIZE = 300;
+  let size = 300;
   const SCALE = 10;
 
   const WINDOW_RATIO = window.innerWidth / window.innerHeight;
   const r = WINDOW_RATIO;
-  const WIDTH = Math.floor(r > 1 ? SIZE : SIZE * r);
-  const HEIGHT = Math.floor(r > 1 ? SIZE / r : SIZE);
+  $: WIDTH = Math.floor(r > 1 ? size : size * r);
+  $: HEIGHT = Math.floor(r > 1 ? size / r : size);
   const MAIN_COLOR = "#000";
   const OTHER_COLORS = ["#666", "#888", "#AAA", "#CCC", "#EEE", "#FFF"];
 
-  let cells = getInitialCells(WIDTH, HEIGHT);
-  let pastCells = [cells];
+  let pastCells;
+  let cells;
+  $: {
+    size;
+    pastCells = [];
+    cells = getInitialCells(WIDTH,HEIGHT)
+  }
 
   let playing = false;
   let interval = null;
@@ -130,11 +136,12 @@
 
 <div class="flex items-center justify-center absolute bottom-4 w-full">
   <div class="flex gap-2 bg-blue-400 p-1 rounded-md">
-    <ToolbarButton Icon={ShuffleIcon} on:click={randomize} />
+    <ToolbarButton Icon={ShuffleIcon} on:click={randomize} disabled={playing} />
     <ToolbarButton
       Icon={playing ? PauseIcon : PlayIcon}
       on:click={switchPausePlay}
     />
+    <ToolbarControl label="Size" type="number" bind:value={size} />
   </div>
 </div>
 
