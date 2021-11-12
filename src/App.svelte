@@ -17,12 +17,14 @@
   import NextIcon from "./lib/icons/NextIcon.svelte";
 
   let size = 100;
+  $: validSize = size || 100;
+
   const SCALE = 10;
 
   const WINDOW_RATIO = window.innerWidth / window.innerHeight;
   const r = WINDOW_RATIO;
-  $: WIDTH = Math.floor(r > 1 ? size : size * r);
-  $: HEIGHT = Math.floor(r > 1 ? size / r : size);
+  $: WIDTH = Math.floor(r > 1 ? validSize : validSize * r);
+  $: HEIGHT = Math.floor(r > 1 ? validSize / r : validSize);
   const MAIN_COLOR = "#000";
   const OTHER_COLORS = ["#666", "#888", "#AAA", "#CCC", "#EEE", "#FFF"].reverse();
 
