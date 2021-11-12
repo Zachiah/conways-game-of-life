@@ -26,6 +26,18 @@ export default class Life {
         }
     }
 
+    useObject(obj: boolean[][],xOffset: number,yOffset: number) {
+        // set cells to have the object centered in the middle of an empty grid
+
+        for (let x = 0; x < obj.length; x++) {
+            for (let y = 0; y < obj[0].length; y++) {
+                this.setCell(x + xOffset, y + yOffset, obj[x][y]);
+            }
+        }
+
+
+    }
+
     countNeighbours(x, y) {
         let sum = 0;
         for (let i = -1; i < 2; i++) {

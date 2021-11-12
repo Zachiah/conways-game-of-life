@@ -17,7 +17,7 @@
   </label>
 
   {#if type === "number"}
-    <input {id} type="number" class="w-20 rounded-md px-2" bind:value readonly={disabled} disabled={disabled} />
+    <input {id} type="number" class="w-20 rounded-md px-2" value={value} on:input readonly={disabled} disabled={disabled} />
   {:else}
     <input {id} type="text" bind:value />
   {/if}

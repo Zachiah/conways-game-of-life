@@ -3,12 +3,20 @@
   import PauseIcon from "./lib/icons/PauseIcon.svelte";
   import PlayIcon from "./lib/icons/PlayIcon.svelte";
   import ShuffleIcon from "./lib/icons/ShuffleIcon.svelte";
+  import EraserIcon from "./lib/icons/EraserIcon.svelte";
   import Life from "./lib/Life";
   import nextGeneration from "./lib/nextGeneration";
+  import {
+    BLINKER_SHIP,
+    GLIDER,
+    SPACESHIP,
+    spinObject90Deg,
+  } from "./lib/objects";
   import ToolbarButton from "./lib/ToolbarButton.svelte";
-import ToolbarControl from "./lib/ToolbarControl.svelte";
+  import ToolbarControl from "./lib/ToolbarControl.svelte";
+  import NextIcon from "./lib/icons/NextIcon.svelte";
 
-  let size = 300;
+  let size = 100;
   const SCALE = 10;
 
   const WINDOW_RATIO = window.innerWidth / window.innerHeight;
@@ -16,14 +24,13 @@ import ToolbarControl from "./lib/ToolbarControl.svelte";
   $: WIDTH = Math.floor(r > 1 ? size : size * r);
   $: HEIGHT = Math.floor(r > 1 ? size / r : size);
   const MAIN_COLOR = "#000";
-  const OTHER_COLORS = ["#666", "#888", "#AAA", "#CCC", "#EEE", "#FFF"];
+  const OTHER_COLORS = ["#666", "#888", "#AAA", "#CCC", "#EEE", "#FFF"].reverse();
 
   let pastCells;
   let cells;
   $: {
-    size;
     pastCells = [];
-    cells = getInitialCells(WIDTH,HEIGHT)
+    cells = getInitialCells(WIDTH, HEIGHT);
   }
 
   let playing = false;
@@ -31,10 +38,15 @@ import ToolbarControl from "./lib/ToolbarControl.svelte";
 
   function getInitialCells(width, height) {
     let life = new Life(width, height);
+    life.useObject(spinObject90Deg(BLINKER_SHIP), 10, 10);
+    life.useObject(spinObject90Deg(BLINKER_SHIP), 50, 50);
+    life.useObject(GLIDER, 10, 10);
+
     return life.cells;
   }
 
   function iterate() {
+    console.log(cells);
     nextGeneration(cells).then((s) => {
       // add the current cells to the past cells and make sure past cells is limited to 5
       pastCells.push(cells);
@@ -44,7 +56,7 @@ import ToolbarControl from "./lib/ToolbarControl.svelte";
       pastCells = pastCells;
       cells = s;
       if (playing) {
-        play();
+        iterate();
       }
     });
   }
@@ -108,6 +120,29 @@ import ToolbarControl from "./lib/ToolbarControl.svelte";
       playing = false;
     };
   });
+
+  let mouseIsDown = false;
+
+  const draw = (e: MouseEvent) => {
+    const target = e.target as HTMLCanvasElement;
+
+    const theScale = target.getBoundingClientRect().width / cells.length;
+    console.log(e.target);
+    console.log(theScale);
+
+    const x = Math.floor(
+      (e.clientX - target.getBoundingClientRect().left) / theScale
+    );
+    const y = Math.floor(
+      (e.clientY - target.getBoundingClientRect().top) / theScale
+    );
+
+    console.log(x, y);
+    cells[x][y] = !eraser;
+    cells = cells;
+  };
+
+  let eraser = false;
 </script>
 
 <!-- {#each cells as row, rowIndex}
@@ -132,6 +167,18 @@ import ToolbarControl from "./lib/ToolbarControl.svelte";
   class="w-full h-full absolute"
   style="aspect-ratio: 1/1"
   bind:this={canvas}
+  on:mousedown={(e) => {
+    mouseIsDown = true;
+    draw(e);
+  }}
+  on:mouseup={() => {
+    mouseIsDown = false;
+  }}
+  on:mousemove={(e) => {
+    if (mouseIsDown) {
+      draw(e);
+    }
+  }}
 />
 
 <div class="flex items-center justify-center absolute bottom-4 w-full">
@@ -141,7 +188,29 @@ import ToolbarControl from "./lib/ToolbarControl.svelte";
       Icon={playing ? PauseIcon : PlayIcon}
       on:click={switchPausePlay}
     />
-    <ToolbarControl label="Size" type="number" disabled={playing} bind:value={size} />
+    <ToolbarControl
+      label="Size"
+      type="number"
+      disabled={playing}
+      value={size}
+      on:input={(e) => {
+        //@ts-ignore
+        size = +e.target.value;
+      }}
+    />
+    <ToolbarButton
+      Icon={EraserIcon}
+      active={eraser}
+      on:click={() => {
+        eraser = !eraser;
+      }}
+    />
+    <ToolbarButton
+      Icon={NextIcon}
+      on:click={() => {
+        iterate();
+      }}
+    />
   </div>
 </div>
 
