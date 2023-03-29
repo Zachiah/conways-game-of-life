@@ -37,8 +37,9 @@
     "#FFF",
   ].reverse();
 
-  let pastCells;
-  let cells;
+  let pastCells: boolean[][][];
+  let cells: boolean[][];
+
   $: {
     pastCells = [];
     cells = getInitialCells(WIDTH, HEIGHT);
@@ -47,7 +48,7 @@
   let playing = false;
   let interval = null;
 
-  function getInitialCells(width, height) {
+  function getInitialCells(width: number, height: number) {
     let life = new Life(width, height);
     life.useObject(spinObject90Deg(BLINKER_SHIP), 10, 10);
     life.useObject(spinObject90Deg(BLINKER_SHIP), 50, 50);
@@ -91,8 +92,9 @@
     }
   }
 
-  let context;
-  let canvas;
+  let context: CanvasRenderingContext2D | null = null;
+  let canvas: HTMLCanvasElement | null = null;
+
   $: {
     if (canvas) {
       context = canvas.getContext("2d");
@@ -100,7 +102,7 @@
   }
 
   $: {
-    if (context) {
+    if (context && canvas) {
       context.clearRect(0, 0, canvas.width, canvas.height);
 
       for (let [index, pastCellsGrid] of pastCells.entries()) {
@@ -174,7 +176,10 @@
   >
     <div class="w-min-content flex flex-col gap-4">
       {#each Object.entries(OBJECTS) as [name, object]}
-        <button class="p-2 bg-blue-200 cursor-pointer rounded-md" on:click={showObject(object)}>
+        <button
+          class="p-2 bg-blue-200 cursor-pointer rounded-md"
+          on:click={showObject(object)}
+        >
           {name}
         </button>
       {/each}
@@ -211,17 +216,24 @@
 
 <div class="flex items-center justify-center absolute bottom-4 w-full">
   <div class="flex gap-2 bg-blue-400 p-1 rounded-md">
-    <ToolbarButton Icon={ShuffleIcon} on:click={randomize} disabled={playing} />
+    <ToolbarButton
+      Icon={ShuffleIcon}
+      on:click={randomize}
+      disabled={playing}
+      tooltipMessage={"Fill the board with random data"}
+    />
     <ToolbarButton
       Icon={AddIcon}
       on:click={() => {
         objectAddingOpen = true;
       }}
       disabled={playing}
+      tooltipMessage={"Add a new object to the board. It will be placed with the top left corner aligned with where you last clicked"}
     />
     <ToolbarButton
       Icon={playing ? PauseIcon : PlayIcon}
       on:click={switchPausePlay}
+      tooltipMessage={playing ? "Pause" : "Play"}
     />
     <ToolbarControl
       label="Size"
@@ -239,8 +251,10 @@
       on:click={() => {
         eraser = !eraser;
       }}
+      tooltipMessage={"Activate the eraser tool"}
     />
     <ToolbarButton
+      tooltipMessage={"Go forward one iteration"}
       Icon={NextIcon}
       on:click={() => {
         iterate();

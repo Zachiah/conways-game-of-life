@@ -1,11 +1,13 @@
 <script lang="ts">
-  import { createEventDispatcher } from "svelte";
+  import { createEventDispatcher, SvelteComponent } from "svelte";
+  import tooltip from "./tooltip";
 
   const dispatch = createEventDispatcher();
 
-  export let Icon;
+  export let Icon: new (props: unknown) => SvelteComponent;
   export let disabled = false;
   export let active = false;
+  export let tooltipMessage: string;
 </script>
 
 <button
@@ -21,6 +23,7 @@
     }
   }}
   {disabled}
+  use:tooltip={{ content: tooltipMessage }}
 >
   <svelte:component this={Icon} />
 </button>
