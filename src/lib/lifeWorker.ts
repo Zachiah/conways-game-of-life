@@ -1,20 +1,20 @@
-import Life from "./Life"
+import Life from "./Life";
 
+let life = new Life(100, 100);
 export default function lifeWorker(lifeCells: boolean[][]): boolean[][] {
-    const life = new Life(lifeCells.length, lifeCells[0].length);
-    life.cells = lifeCells;
+  life.cells = lifeCells;
+  life.width = lifeCells.length;
+  life.height = lifeCells[0].length;
 
-    life.next();
+  life.next();
 
-    return life.cells;
+  return life.cells;
 }
 
 onmessage = (event: MessageEvent) => {
+  const lifeCells = event.data;
 
-    const lifeCells = event.data;
+  const result = lifeWorker(lifeCells);
 
-    const result = lifeWorker(lifeCells);
-
-    postMessage(result);
-
-}
+  postMessage(result);
+};

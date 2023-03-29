@@ -17,9 +17,24 @@
   import ToolbarControl from "./lib/ToolbarControl.svelte";
   import NextIcon from "./lib/icons/NextIcon.svelte";
   import AddIcon from "./lib/icons/AddIcon.svelte";
+  import { tweened } from "svelte/motion";
 
   let size = 100;
   $: validSize = size || 100;
+
+  let fpsState: { last: number; current: number } | number | null = null;
+
+  let fps = tweened(0);
+
+  $: {
+    fps.set(
+      fpsState === null
+        ? 0
+        : typeof fpsState === "number"
+        ? 0
+        : 1000 / (fpsState.current - fpsState.last)
+    );
+  }
 
   const SCALE = 10;
 
@@ -58,7 +73,15 @@
   }
 
   function iterate() {
-    console.log(cells);
+    const current = performance.now();
+
+    fpsState =
+      fpsState === null
+        ? current
+        : typeof fpsState === "number"
+        ? { current, last: fpsState }
+        : { current, last: fpsState.current };
+
     nextGeneration(cells).then((s) => {
       // add the current cells to the past cells and make sure past cells is limited to 5
       pastCells.push(cells);
@@ -87,6 +110,7 @@
   function switchPausePlay() {
     if (playing) {
       playing = false;
+      fpsState = null;
     } else {
       play();
     }
@@ -106,7 +130,7 @@
       context.clearRect(0, 0, canvas.width, canvas.height);
 
       for (let [index, pastCellsGrid] of pastCells.entries()) {
-        context.fillStyle = OTHER_COLORS.reverse()[index];
+        context.fillStyle = OTHER_COLORS[index];
         for (let i = 0; i < cells.length; i++) {
           for (let j = 0; j < cells[i].length; j++) {
             if (pastCellsGrid[i][j]) {
@@ -214,6 +238,12 @@
   }}
 />
 
+{#if playing}
+  <div class="absolute top-4 right-4 font-mono">
+    {$fps.toFixed(0)} FPS
+  </div>
+{/if}
+
 <div class="flex items-center justify-center absolute bottom-4 w-full">
   <div class="flex gap-2 bg-blue-400 p-1 rounded-md">
     <ToolbarButton
@@ -228,7 +258,7 @@
         objectAddingOpen = true;
       }}
       disabled={playing}
-      tooltipMessage={"Add a new object to the board. It will be placed with the top left corner aligned with where you last clicked"}
+      tooltipMessage={"Clear the board then add a new object to the board"}
     />
     <ToolbarButton
       Icon={playing ? PauseIcon : PlayIcon}
