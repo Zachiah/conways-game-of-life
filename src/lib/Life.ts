@@ -134,6 +134,14 @@ namespace Life {
       .split("\n")
       .map((row) => row.split("").map((cell) => cell === "1"));
   };
+
+  export const forEach = (life: Life, cb: (pos: Pos, cell: Cell) => void) => {
+    for (let x = 0; x < life.length; x++) {
+      for (let y = 0; y < life.length; y++) {
+        cb({x,y},life[x][y])
+      }
+    }
+  };
 }
 
 type Life = Life.Cell[][];

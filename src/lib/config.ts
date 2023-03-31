@@ -8,13 +8,13 @@ export const OTHER_COLORS = [
   "#AAA",
   "#CCC",
   "#EEE",
-  "#FFF",
 ].reverse();
 export const SCALE = 10;
 export const DEFAULT_SIZE = 100;
+export const MAX_HISTORY = OTHER_COLORS.length - 1;
 
-export function getInitialCells(width: number, height: number): Life {
-  let life = Life.createBlankFromSize({ width, height });
+export function getInitialCells(size: Life.Size): Life {
+  let life = Life.createBlankFromSize(size);
 
   const objects: [number, number, Life][] = [
     [10, 10, Life.rotate90Deg(BLINKER_SHIP)],

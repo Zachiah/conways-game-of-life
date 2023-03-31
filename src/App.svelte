@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, tick } from "svelte";
   import Life from "./lib/Life";
   import nextGeneration from "./lib/nextGeneration";
 
@@ -15,40 +15,43 @@
     DEFAULT_SIZE,
     getInitialCells,
   } from "./lib/config";
+  import useWindowSize from "./lib/useWindowSize";
+  import useLifeSize from "./lib/useLifeSize";
+  import { derived, writable } from "svelte/store";
+  import useLifeHistory from "./lib/useLifeHistory";
+  import { drawOnCanvas } from "./lib/lifeCanvas";
 
-  let size = DEFAULT_SIZE;
-  $: validSize = size || DEFAULT_SIZE;
+  let size = writable(DEFAULT_SIZE);
+  let validSize = derived(size, (s) => s || DEFAULT_SIZE);
 
   let fps = useFps();
+  let windowSize = useWindowSize();
 
-  const WINDOW_RATIO = window.innerWidth / window.innerHeight;
-  const r = WINDOW_RATIO;
-  $: WIDTH = Math.floor(r > 1 ? validSize : validSize * r);
-  $: HEIGHT = Math.floor(r > 1 ? validSize / r : validSize);
+  const lifeSize = useLifeSize(windowSize, validSize);
 
-  let pastCells: boolean[][][];
-  let life: Life;
-
-  $: {
-    console.log("Resetting life");
-    pastCells = [];
-    life = getInitialCells(WIDTH, HEIGHT);
-  }
+  let pastCells = useLifeHistory();
+  let life = writable<Life>(Life.createBlankFromSize({ height: 1, width: 1 }));
 
   let playing = false;
+
+  lifeSize.subscribe(async (ls) => {
+    if (playing) return;
+
+    console.log("Resetting life");
+    pastCells.reset();
+
+    $life = Life.createBlankFromSize(ls);
+  });
 
   async function iterate() {
     fps.tick();
 
-    const newLife = await nextGeneration(life);
+    const newLife = await nextGeneration($life);
+    pastCells.push($life);
 
     // add the current cells to the past cells and make sure past cells is limited to 5
-    pastCells.push(life);
-    if (pastCells.length > 5) {
-      pastCells.shift();
-    }
-    pastCells = pastCells;
-    life = newLife;
+
+    $life = newLife;
 
     if (!playing) return;
 
@@ -56,7 +59,7 @@
   }
 
   function randomize() {
-    life = Life.createRandomFromSize({ width: WIDTH, height: HEIGHT });
+    $life = Life.createRandomFromSize($lifeSize);
   }
 
   function play() {
@@ -76,37 +79,12 @@
   let context: CanvasRenderingContext2D | null = null;
   let canvas: HTMLCanvasElement | null = null;
 
-  $: {
-    if (canvas) {
-      context = canvas.getContext("2d");
-    }
-  }
+  onMount(() => {
+    context = canvas?.getContext("2d") ?? null;
+  });
 
-  $: {
-    if (context && canvas) {
-      context.clearRect(0, 0, canvas.width, canvas.height);
-
-      for (let [index, pastCellsGrid] of pastCells.entries()) {
-        context.fillStyle = OTHER_COLORS[index];
-        for (let i = 0; i < life.length; i++) {
-          for (let j = 0; j < life[i].length; j++) {
-            if (pastCellsGrid[i][j]) {
-              context.fillRect(i * SCALE, j * SCALE, SCALE, SCALE);
-            }
-          }
-        }
-      }
-
-      context.fillStyle = MAIN_COLOR;
-      // draw rect for each live cell
-      for (let i = 0; i < life.length; i++) {
-        for (let j = 0; j < life[i].length; j++) {
-          if (life[i][j]) {
-            context.fillRect(i * SCALE, j * SCALE, SCALE, SCALE);
-          }
-        }
-      }
-    }
+  $: if (context && canvas) {
+    drawOnCanvas({ ctx: context, canvas }, $life, $pastCells);
   }
 
   onMount(() => {
@@ -120,14 +98,14 @@
   const draw = (e: MouseEvent) => {
     const { x, y } = getDrawCoordinates(e);
 
-    life[x][y] = !eraserToolActive;
-    life = life;
+    $life[x][y] = !eraserToolActive;
   };
 
-  const getDrawCoordinates = (e: MouseEvent) => {
+  const getDrawCoordinates = (e: MouseEvent): Life.Pos => {
     const target = e.target as HTMLCanvasElement;
 
-    const theScale = target.getBoundingClientRect().width / life.length;
+    const theScale = target.getBoundingClientRect().width / $lifeSize.width;
+
     const x = Math.floor(
       (e.clientX - target.getBoundingClientRect().left) / theScale
     );
@@ -143,14 +121,11 @@
   let objectAddingOpen = false;
 
   const showObject = (object: Life) => {
-    console.log("ShowObject");
-    const newLife = Life.createBlankFromSize({ width: WIDTH, height: HEIGHT });
+    const newLife = Life.createBlankFromSize($lifeSize);
     Life.addObject({ obj: object, offset: { x: 10, y: 10 }, life: newLife });
-    life = newLife;
+    $life = newLife;
 
     objectAddingOpen = false;
-
-    console.log("ShowObject Finished");
   };
 </script>
 
@@ -166,8 +141,8 @@
 />
 
 <canvas
-  width={WIDTH * SCALE}
-  height={HEIGHT * SCALE}
+  width={$lifeSize.width * SCALE}
+  height={$lifeSize.height * SCALE}
   class="w-full h-full absolute"
   style="aspect-ratio: 1/1"
   bind:this={canvas}
@@ -187,7 +162,7 @@
 
 <FpsIndicator {playing} fps={$fps} />
 <Toolbar
-  bind:size
+  bind:size={$size}
   {playing}
   {eraserToolActive}
   on:randomize={randomize}
