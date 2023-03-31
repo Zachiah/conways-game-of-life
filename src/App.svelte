@@ -1,105 +1,62 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import PauseIcon from "./lib/icons/PauseIcon.svelte";
-  import PlayIcon from "./lib/icons/PlayIcon.svelte";
-  import ShuffleIcon from "./lib/icons/ShuffleIcon.svelte";
-  import EraserIcon from "./lib/icons/EraserIcon.svelte";
   import Life from "./lib/Life";
   import nextGeneration from "./lib/nextGeneration";
+
+  import FpsIndicator from "./components/FpsIndicator.svelte";
+  import Toolbar from "./components/Toolbar.svelte";
+  import AddObjectDialog from "./components/AddObjectDialog.svelte";
+  import useFps from "./lib/useFps";
+
   import {
-    BLINKER_SHIP,
-    GLIDER,
-    OBJECTS,
-    SPACESHIP,
-    spinObject90Deg,
-  } from "./lib/objects";
-  import ToolbarButton from "./lib/ToolbarButton.svelte";
-  import ToolbarControl from "./lib/ToolbarControl.svelte";
-  import NextIcon from "./lib/icons/NextIcon.svelte";
-  import AddIcon from "./lib/icons/AddIcon.svelte";
-  import { tweened } from "svelte/motion";
+    SCALE,
+    MAIN_COLOR,
+    OTHER_COLORS,
+    DEFAULT_SIZE,
+    getInitialCells,
+  } from "./lib/config";
 
-  let size = 100;
-  $: validSize = size || 100;
+  let size = DEFAULT_SIZE;
+  $: validSize = size || DEFAULT_SIZE;
 
-  let fpsState: { last: number; current: number } | number | null = null;
-
-  let fps = tweened(0);
-
-  $: {
-    fps.set(
-      fpsState === null
-        ? 0
-        : typeof fpsState === "number"
-        ? 0
-        : 1000 / (fpsState.current - fpsState.last)
-    );
-  }
-
-  const SCALE = 10;
+  let fps = useFps();
 
   const WINDOW_RATIO = window.innerWidth / window.innerHeight;
   const r = WINDOW_RATIO;
   $: WIDTH = Math.floor(r > 1 ? validSize : validSize * r);
   $: HEIGHT = Math.floor(r > 1 ? validSize / r : validSize);
-  const MAIN_COLOR = "#000";
-  const OTHER_COLORS = [
-    "#666",
-    "#888",
-    "#AAA",
-    "#CCC",
-    "#EEE",
-    "#FFF",
-  ].reverse();
 
   let pastCells: boolean[][][];
-  let cells: boolean[][];
+  let life: Life;
 
   $: {
+    console.log("Resetting life");
     pastCells = [];
-    cells = getInitialCells(WIDTH, HEIGHT);
+    life = getInitialCells(WIDTH, HEIGHT);
   }
 
   let playing = false;
-  let interval = null;
 
-  function getInitialCells(width: number, height: number) {
-    let life = new Life(width, height);
-    life.useObject(spinObject90Deg(BLINKER_SHIP), 10, 10);
-    life.useObject(spinObject90Deg(BLINKER_SHIP), 50, 50);
-    life.useObject(GLIDER, 10, 10);
+  async function iterate() {
+    fps.tick();
 
-    return life.cells;
-  }
+    const newLife = await nextGeneration(life);
 
-  function iterate() {
-    const current = performance.now();
+    // add the current cells to the past cells and make sure past cells is limited to 5
+    pastCells.push(life);
+    if (pastCells.length > 5) {
+      pastCells.shift();
+    }
+    pastCells = pastCells;
+    life = newLife;
 
-    fpsState =
-      fpsState === null
-        ? current
-        : typeof fpsState === "number"
-        ? { current, last: fpsState }
-        : { current, last: fpsState.current };
+    if (!playing) return;
 
-    nextGeneration(cells).then((s) => {
-      // add the current cells to the past cells and make sure past cells is limited to 5
-      pastCells.push(cells);
-      if (pastCells.length > 5) {
-        pastCells.shift();
-      }
-      pastCells = pastCells;
-      cells = s;
-      if (playing) {
-        iterate();
-      }
-    });
+    await iterate();
   }
 
   function randomize() {
-    let life = new Life(WIDTH, HEIGHT);
-    life.randomize();
-    cells = life.cells;
+    life = Life.createRandomFromSize({ width: WIDTH, height: HEIGHT });
   }
 
   function play() {
@@ -110,7 +67,7 @@
   function switchPausePlay() {
     if (playing) {
       playing = false;
-      fpsState = null;
+      fps.clear();
     } else {
       play();
     }
@@ -131,8 +88,8 @@
 
       for (let [index, pastCellsGrid] of pastCells.entries()) {
         context.fillStyle = OTHER_COLORS[index];
-        for (let i = 0; i < cells.length; i++) {
-          for (let j = 0; j < cells[i].length; j++) {
+        for (let i = 0; i < life.length; i++) {
+          for (let j = 0; j < life[i].length; j++) {
             if (pastCellsGrid[i][j]) {
               context.fillRect(i * SCALE, j * SCALE, SCALE, SCALE);
             }
@@ -142,9 +99,9 @@
 
       context.fillStyle = MAIN_COLOR;
       // draw rect for each live cell
-      for (let i = 0; i < cells.length; i++) {
-        for (let j = 0; j < cells[i].length; j++) {
-          if (cells[i][j]) {
+      for (let i = 0; i < life.length; i++) {
+        for (let j = 0; j < life[i].length; j++) {
+          if (life[i][j]) {
             context.fillRect(i * SCALE, j * SCALE, SCALE, SCALE);
           }
         }
@@ -163,14 +120,14 @@
   const draw = (e: MouseEvent) => {
     const { x, y } = getDrawCoordinates(e);
 
-    cells[x][y] = !eraser;
-    cells = cells;
+    life[x][y] = !eraserToolActive;
+    life = life;
   };
 
   const getDrawCoordinates = (e: MouseEvent) => {
     const target = e.target as HTMLCanvasElement;
 
-    const theScale = target.getBoundingClientRect().width / cells.length;
+    const theScale = target.getBoundingClientRect().width / life.length;
     const x = Math.floor(
       (e.clientX - target.getBoundingClientRect().left) / theScale
     );
@@ -181,42 +138,32 @@
     return { x, y };
   };
 
-  let eraser = false;
+  let eraserToolActive = false;
 
   let objectAddingOpen = false;
 
-  const showObject = (object: boolean[][]) => () => {
-    const game = new Life(WIDTH, HEIGHT);
-    game.useObject(object, 10, 10);
-    cells = game.cells;
+  const showObject = (object: Life) => {
+    console.log("ShowObject");
+    const newLife = Life.createBlankFromSize({ width: WIDTH, height: HEIGHT });
+    Life.addObject({ obj: object, offset: { x: 10, y: 10 }, life: newLife });
+    life = newLife;
 
     objectAddingOpen = false;
+
+    console.log("ShowObject Finished");
   };
 </script>
 
-{#if objectAddingOpen}
-  <div
-    class="fixed top-0 w-screen h-screen bg-gray-800 bg-opacity-40 z-40 flex items-center justify-center"
-  >
-    <div class="w-min-content flex flex-col gap-4">
-      {#each Object.entries(OBJECTS) as [name, object]}
-        <button
-          class="p-2 bg-blue-200 cursor-pointer rounded-md"
-          on:click={showObject(object)}
-        >
-          {name}
-        </button>
-      {/each}
-
-      <button
-        class="p-2 bg-red-200 cursor-pointer rounded-md"
-        on:click={() => (objectAddingOpen = false)}
-      >
-        Cancel
-      </button>
-    </div>
-  </div>
-{/if}
+<AddObjectDialog
+  open={objectAddingOpen}
+  on:close={() => {
+    objectAddingOpen = false;
+  }}
+  on:showObject={(e) => {
+    console.log("Calling Show Object");
+    showObject(e.detail);
+  }}
+/>
 
 <canvas
   width={WIDTH * SCALE}
@@ -238,59 +185,18 @@
   }}
 />
 
-{#if playing}
-  <div class="absolute top-4 right-4 font-mono p-2 bg-white rounded-md opacity-70 hover:opacity-100">
-    {$fps.toFixed(0)} FPS
-  </div>
-{/if}
-
-<div class="flex items-center justify-center absolute bottom-4 w-full">
-  <div class="flex gap-2 bg-blue-400 p-1 rounded-md">
-    <ToolbarButton
-      Icon={ShuffleIcon}
-      on:click={randomize}
-      disabled={playing}
-      tooltipMessage={"Fill the board with random data"}
-    />
-    <ToolbarButton
-      Icon={AddIcon}
-      on:click={() => {
-        objectAddingOpen = true;
-      }}
-      disabled={playing}
-      tooltipMessage={"Clear the board then add a new object to the board"}
-    />
-    <ToolbarButton
-      Icon={playing ? PauseIcon : PlayIcon}
-      on:click={switchPausePlay}
-      tooltipMessage={playing ? "Pause" : "Play"}
-    />
-    <ToolbarControl
-      label="Size"
-      type="number"
-      disabled={playing}
-      value={size}
-      on:input={(e) => {
-        //@ts-ignore
-        size = +e.target.value;
-      }}
-    />
-    <ToolbarButton
-      Icon={EraserIcon}
-      active={eraser}
-      on:click={() => {
-        eraser = !eraser;
-      }}
-      tooltipMessage={"Activate the eraser tool"}
-    />
-    <ToolbarButton
-      tooltipMessage={"Go forward one iteration"}
-      Icon={NextIcon}
-      on:click={() => {
-        iterate();
-      }}
-    />
-  </div>
-</div>
+<FpsIndicator {playing} fps={$fps} />
+<Toolbar
+  bind:size
+  {playing}
+  {eraserToolActive}
+  on:randomize={randomize}
+  on:switchPausePlay={switchPausePlay}
+  on:toggleEraserToolActive={() => {
+    eraserToolActive = !eraserToolActive;
+  }}
+  on:iterate={iterate}
+  on:openObjectAdding={() => (objectAddingOpen = true)}
+/>
 
 <!--Next button-->

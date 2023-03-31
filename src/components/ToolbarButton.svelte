@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher, SvelteComponent } from "svelte";
-  import tooltip from "./tooltip";
+  import tooltip from "../lib/tooltip";
 
   const dispatch = createEventDispatcher();
 

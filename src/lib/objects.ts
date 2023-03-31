@@ -1,17 +1,4 @@
-export const spinObject90Deg = (obj: boolean[][]) => {
-    const newObj = [];
-    for (let i = 0; i < obj[0].length; i++) {
-      newObj[i] = [];
-      for (let j = 0; j < obj.length; j++) {
-        newObj[i][j] = obj[obj.length - j - 1][i];
-      }
-    }
-    return newObj;
-  };
-
-  export const getObjectFrom01String = (str: string) => {
-      return str.split('\n').map(row => row.split('').map(cell => cell === '1'));
-  }
+import Life from "./Life";
 
 export const GLIDER = [
   [false, false, true],
@@ -26,8 +13,9 @@ export const SPACESHIP = [
   [true, true, true, true, false],
 ];
 
-export const BLINKER_SHIP = spinObject90Deg(getObjectFrom01String(
-`000000000011110000000000000
+export const BLINKER_SHIP = Life.rotate90Deg(
+  Life.createFrom01String(
+    `000000000011110000000000000
 000000000010001000000000000
 000000000010000000000000000
 011000000001001000000000000
@@ -42,10 +30,11 @@ export const BLINKER_SHIP = spinObject90Deg(getObjectFrom01String(
 000000000010000000000000000
 000000000010001000000000000
 000000000011110000000000000`
-));
+  )
+);
 
 export const OBJECTS = {
   GLIDER,
   SPACESHIP,
   BLINKER_SHIP,
-}
+};
